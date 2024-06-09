@@ -7,7 +7,7 @@ import {
   DirectionsRenderer,
 } from '@react-google-maps/api';
 import { FaLocationArrow, FaBars, FaSave, FaPlus, FaTrash } from 'react-icons/fa';
-import './app.css';
+import './app.css'; // Importar estilos CSS
 
 function App() {
   // Cargar la API de Google Maps
@@ -22,11 +22,12 @@ function App() {
   const [rutesGuardades, setRutesGuardades] = useState([]);
   const [mostrarMenu, setMostrarMenu] = useState(false);
   const [puntsIntermitjos, setPuntsIntermitjos] = useState([]);
+  const [distance, setDistance] = useState(''); // Estado para la distancia
+  const [duration, setDuration] = useState(''); // Estado para la duración
   const origenRef = useRef();
   const destiRef = useRef();
   const nomRutaRef = useRef();
 
-  // Obtener ubicación actual
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -55,8 +56,8 @@ function App() {
     }
   }, [mapa]);
 
-  // Cargar rutas guardadas al inicio
   useEffect(() => {
+    // Cargar rutas guardadas al inicio
     const routes = JSON.parse(localStorage.getItem('rutesGuardades')) || [];
     setRutesGuardades(routes);
   }, []);
@@ -85,10 +86,19 @@ function App() {
     const resultats = await serveiDireccions.route({
       origin: origenRef.current.value,
       destination: destiRef.current.value,
-      travelMode: window.google.maps.TravelMode.BICYCLING,//modo bicicleta para rutas rapidas
+      travelMode: window.google.maps.TravelMode.BICYCLING,
       waypoints: puntsIntermitjos.map(punt => ({ location: punt })),
     });
     setRespostaDireccions(resultats);
+    calcularDistanciaYTiempo(resultats); // Calcular la distancia y la duración de la ruta
+  }
+
+  // Calcular la distancia y la duración de la ruta
+  function calcularDistanciaYTiempo(resultats) {
+    const distancia = resultats.routes[0].legs.reduce((acc, leg) => acc + leg.distance.value, 0);
+    const duracion = resultats.routes[0].legs.reduce((acc, leg) => acc + leg.duration.value, 0);
+    setDistance((distancia / 1000).toFixed(2) + ' km');
+    setDuration(Math.round(duracion / 60) + ' min'); // redondeo
   }
   
   // Limpiar ruta
@@ -97,6 +107,8 @@ function App() {
     origenRef.current.value = '';
     destiRef.current.value = '';
     setPuntsIntermitjos([]);
+    setDistance(''); // Limpiar la distancia
+    setDuration(''); // Limpiar la duración
   }
   
   // Guardar ruta
@@ -128,7 +140,7 @@ function App() {
     localStorage.setItem('rutesGuardades', JSON.stringify(rutesActualitzades));
   }
   
-  // Añadir punto intermedio
+  // Añadir punto intermedio en la ruta
   function afegirPuntIntermig() {
     const punt = prompt('Introduce una parada:');
     if (punt) {
@@ -148,6 +160,8 @@ function App() {
             streetViewControl: false,
             mapTypeControl: false,
             fullscreenControl: false,
+            rotateControl: true, // Permitir rotación del mapa
+            gestureHandling: "greedy", // Permitir navegación con un dedo
           }}
           onLoad={(mapa) => {
             setMapa(mapa);
@@ -225,7 +239,11 @@ function App() {
             </div>
           </Autocomplete>
           <Autocomplete>
-            <input type='text' placeholder='Destino' ref={destiRef} className="input-autocomplete" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input type='text' placeholder='Destino' ref={destiRef} className="input-autocomplete" />
+              <span className="distancia">{distance}</span>
+              <span className="duracion">{duration}</span>
+            </div>
           </Autocomplete>
           <button onClick={calcularRuta} className="boton-ruta">
             Calcular ruta
